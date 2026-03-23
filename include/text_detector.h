@@ -205,6 +205,22 @@ int text_detector_detect_and_transcribe(const char* original_image,
                                         text_detector_text_boxes_t* text_boxes,
                                         int padding);
 
+/**
+ * Run text detection and transcription in one step (in-memory version).
+ * This function works directly with RGB pixel data, no file I/O required.
+ *
+ * Args:
+ *   rgb: Input image data [height][width][3], RGB format, values in [0.0, 1.0].
+ *        Must be TEXT_DETECTOR_INPUT_HEIGHT x TEXT_DETECTOR_INPUT_WIDTH.
+ *   text_boxes: Output text boxes with transcriptions (must be pre-allocated)
+ *   padding: Pixels to expand each box by (default 3)
+ *
+ * Returns: Number of transcriptions, or -1 on error.
+ */
+int text_detector_detect_and_transcribe_memory(const float rgb[TEXT_DETECTOR_INPUT_HEIGHT][TEXT_DETECTOR_INPUT_WIDTH][3],
+                                               text_detector_text_boxes_t* text_boxes,
+                                               int padding);
+
 #ifdef __cplusplus
 }
 #endif

@@ -3,6 +3,8 @@ set(LIB_SOURCES
     ../text_detector.c
     image_io.c
     ocr.c
+    ocr_memory.c
+    detect_memory.c
     bounding_boxes.c
 )
 
