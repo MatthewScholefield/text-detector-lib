@@ -11,6 +11,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*
+ * Internal definition of text_detector_result_t for access to boxes field.
+ * This matches the definition in text_detector.c.
+ */
+struct text_detector_result_t {
+    float output[1][1][TEXT_DETECTOR_OUTPUT_HEIGHT][TEXT_DETECTOR_OUTPUT_WIDTH];
+    text_detector_boxes_t boxes;
+};
+
 /* External functions */
 extern int text_detector_detect(const float rgb[TEXT_DETECTOR_INPUT_HEIGHT][TEXT_DETECTOR_INPUT_WIDTH][3],
                                 text_detector_result_t* result);
@@ -38,53 +47,41 @@ int text_detector_detect_and_transcribe_memory(
         return -1;
     }
 
-    if (debug_enabled()) {
-        fprintf(stderr, "[LIB] detect_and_transcribe_memory: padding=%d\n", padding);
-        fprintf(stderr, "[LIB] About to call text_detector_detect\n");
-    }
-
-    /* Step 1: Run detection */
-    text_detector_result_t result;
-    int detect_result = text_detector_detect(rgb, &result);
-
-    if (debug_enabled()) {
-        fprintf(stderr, "[LIB] text_detector_detect returned: %d\n", detect_result);
-    }
-
-    if (detect_result != 0) {
-        fprintf(stderr, "Error: Detection failed\n");
+    /* Step 1: Allocate and run detection */
+    text_detector_result_t* result = text_detector_result_create(text_boxes->capacity);
+    if (!result) {
+        fprintf(stderr, "Error: Failed to allocate result structure\n");
         return -1;
     }
 
-    if (debug_enabled()) {
-        fprintf(stderr, "[LIB] Detection found %zu boxes (before pixel conversion)\n", result.boxes.count);
+    int detect_result = text_detector_detect(rgb, result);
+
+    if (detect_result != 0) {
+        fprintf(stderr, "Error: Detection failed\n");
+        text_detector_result_free(result);
+        return -1;
     }
 
     /* Step 2: Convert boxes from cell coordinates to pixel coordinates */
-    text_detector_convert_to_pixels(&result.boxes, padding);
+    text_detector_convert_to_pixels(result, padding);
 
     if (debug_enabled()) {
-        fprintf(stderr, "[LIB] After pixel conversion:\n");
-        for (size_t i = 0; i < result.boxes.count && i < 5; i++) {
-            fprintf(stderr, "[LIB]   Box[%zu]: x=%d, y=%d, w=%d, h=%d, conf=%.2f, pixels=%d\n",
-                    i, result.boxes.boxes[i].x, result.boxes.boxes[i].y,
-                    result.boxes.boxes[i].width, result.boxes.boxes[i].height,
-                    result.boxes.boxes[i].confidence, result.boxes.boxes[i].pixel_count);
-        }
-        if (result.boxes.count > 5) {
-            fprintf(stderr, "[LIB]   ... and %zu more boxes\n", result.boxes.count - 5);
+        const text_detector_box_t* boxes = text_detector_result_get_boxes(result);
+        size_t count = text_detector_result_get_count(result);
+        fprintf(stderr, "[LIB] Detected %zu text regions:\n", count);
+        for (size_t i = 0; i < count; i++) {
+            fprintf(stderr, "[LIB]   [%zu] x=%d y=%d w=%d h=%d conf=%.2f\n",
+                    i, boxes[i].x, boxes[i].y, boxes[i].width, boxes[i].height, boxes[i].confidence);
         }
     }
 
     /* Step 3: Transcribe using in-memory OCR */
-    int count = ocr_transcribe_from_rgb(rgb, &result.boxes, text_boxes);
+    // We need to access the internal boxes structure for OCR transcription
+    // This is a bit ugly but necessary since ocr_transcribe_from_rgb expects text_detector_boxes_t*
+    int count = ocr_transcribe_from_rgb(rgb, &result->boxes, text_boxes);
 
-    if (debug_enabled()) {
-        fprintf(stderr, "[LIB] OCR transcribed %d boxes\n", count);
-    }
-
-    /* Free detection result boxes (text_boxes owns the OCR results) */
-    text_detector_boxes_free(&result.boxes);
+    /* Free detection result (text_boxes owns the OCR results) */
+    text_detector_result_free(result);
 
     return count;
 }

@@ -23,6 +23,15 @@ extern void ocr_cleanup(void);
 /* Library state */
 static int initialized = 0;
 
+/**
+ * Internal definition of text_detector_result_t.
+ * This is opaque in the public header to prevent direct access.
+ */
+struct text_detector_result_t {
+    float output[1][1][TEXT_DETECTOR_OUTPUT_HEIGHT][TEXT_DETECTOR_OUTPUT_WIDTH];
+    text_detector_boxes_t boxes;
+};
+
 int text_detector_init(const char* tessdata_path, const char* language) {
     if (initialized) {
         return 0;  /* Already initialized */
@@ -42,6 +51,39 @@ void text_detector_cleanup(void) {
         ocr_cleanup();
     }
     initialized = 0;
+}
+
+text_detector_result_t* text_detector_result_create(size_t box_capacity) {
+    text_detector_result_t* result = (text_detector_result_t*)malloc(sizeof(text_detector_result_t));
+    if (!result) {
+        return NULL;
+    }
+
+    result->boxes.boxes = (text_detector_box_t*)malloc(sizeof(text_detector_box_t) * box_capacity);
+    if (!result->boxes.boxes) {
+        free(result);
+        return NULL;
+    }
+
+    result->boxes.count = 0;
+    result->boxes.capacity = box_capacity;
+
+    return result;
+}
+
+void text_detector_result_free(text_detector_result_t* result) {
+    if (result) {
+        free(result->boxes.boxes);
+        free(result);
+    }
+}
+
+size_t text_detector_result_get_count(const text_detector_result_t* result) {
+    return result ? result->boxes.count : 0;
+}
+
+const text_detector_box_t* text_detector_result_get_boxes(const text_detector_result_t* result) {
+    return result ? result->boxes.boxes : NULL;
 }
 
 text_detector_boxes_t* text_detector_boxes_create(size_t capacity) {
@@ -131,34 +173,12 @@ int text_detector_detect(const float rgb[TEXT_DETECTOR_INPUT_HEIGHT][TEXT_DETECT
     /* Run inference */
     entry(input, result->output);
 
-    if (getenv("MCP_DEBUG")) {
-        fprintf(stderr, "[LIB] entry() returned, about to extract boxes\n");
-        fflush(stderr);
-    }
-
     /* Extract boxes if result has a boxes array allocated */
-    if (getenv("MCP_DEBUG")) {
-        fprintf(stderr, "[LIB] result->boxes.boxes = %p\n", (void*)result->boxes.boxes);
-        fflush(stderr);
-    }
     if (result->boxes.boxes) {
-        if (getenv("MCP_DEBUG")) {
-            fprintf(stderr, "[LIB] About to call text_detector_extract_boxes\n");
-            fflush(stderr);
-        }
         int box_count = text_detector_extract_boxes(result->output, &result->boxes);
-        if (getenv("MCP_DEBUG")) {
-            fprintf(stderr, "[LIB] extract_boxes returned: %d\n", box_count);
-            fflush(stderr);
-        }
         if (box_count < 0) {
             return -1;
         }
-    }
-
-    if (getenv("MCP_DEBUG")) {
-        fprintf(stderr, "[LIB] text_detector_detect returning 0\n");
-        fflush(stderr);
     }
 
     return 0;
@@ -181,15 +201,15 @@ int text_detector_save_annotated(const char* filename, const char* original_imag
     return save_annotated_image(filename, original_image, &internal_boxes);
 }
 
-void text_detector_convert_to_pixels(text_detector_boxes_t* boxes, int padding) {
-    if (!boxes) {
+void text_detector_convert_to_pixels(text_detector_result_t* result, int padding) {
+    if (!result) {
         return;
     }
 
     BoundingBoxList internal_boxes;
-    convert_from_bounding_box_list(boxes, &internal_boxes);
+    convert_from_bounding_box_list(&result->boxes, &internal_boxes);
     convert_to_pixel_coords(&internal_boxes, padding);
-    convert_to_bounding_box_list(&internal_boxes, boxes);
+    convert_to_bounding_box_list(&internal_boxes, &result->boxes);
 }
 
 int text_detector_save_crops(const char* original_image,
@@ -250,32 +270,29 @@ int text_detector_detect_and_transcribe(const char* original_image,
         return -1;
     }
 
-    /* Run detection */
-    text_detector_result_t result;
-    result.boxes.count = 0;
-    result.boxes.capacity = text_boxes->capacity;
-    result.boxes.boxes = (text_detector_box_t*)malloc(sizeof(text_detector_box_t) * text_boxes->capacity);
-    if (!result.boxes.boxes) {
+    /* Allocate and run detection */
+    text_detector_result_t* result = text_detector_result_create(text_boxes->capacity);
+    if (!result) {
         return -1;
     }
 
-    if (text_detector_detect(rgb, &result) != 0) {
-        free(result.boxes.boxes);
+    if (text_detector_detect(rgb, result) != 0) {
+        text_detector_result_free(result);
         return -1;
     }
 
-    if (result.boxes.count == 0) {
+    if (result->boxes.count == 0) {
         text_boxes->count = 0;
-        free(result.boxes.boxes);
+        text_detector_result_free(result);
         return 0;
     }
 
     /* Convert to pixel coordinates */
-    text_detector_convert_to_pixels(&result.boxes, padding);
+    text_detector_convert_to_pixels(result, padding);
 
     /* Transcribe */
-    int ret = ocr_transcribe(original_image, &result.boxes, text_boxes);
+    int ret = ocr_transcribe(original_image, &result->boxes, text_boxes);
 
-    free(result.boxes.boxes);
+    text_detector_result_free(result);
     return ret;
 }

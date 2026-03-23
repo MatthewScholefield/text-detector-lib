@@ -61,6 +61,9 @@ int ocr_init(const char* tessdata_path, const char* language) {
     /* Set page segmentation mode to auto */
     TessBaseAPISetPageSegMode(tesseract_api, PSM_AUTO);
 
+    /* Suppress Tesseract debug output */
+    TessBaseAPISetVariable(tesseract_api, "debug_file", "/dev/null");
+
     tesseract_initialized = 1;
     return 0;
 }

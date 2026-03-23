@@ -48,11 +48,9 @@ typedef struct {
 
 /**
  * Detection result containing raw model output and extracted boxes.
+ * Opaque structure - use text_detector_result_create() to instantiate.
  */
-typedef struct {
-    float output[1][1][TEXT_DETECTOR_OUTPUT_HEIGHT][TEXT_DETECTOR_OUTPUT_WIDTH];
-    text_detector_boxes_t boxes;
-} text_detector_result_t;
+typedef struct text_detector_result_t text_detector_result_t;
 
 /**
  * Text box with transcribed text content.
@@ -91,12 +89,37 @@ int text_detector_init(const char* tessdata_path, const char* language);
 void text_detector_cleanup(void);
 
 /**
+ * Create a detection result structure.
+ *
+ * Args:
+ *   box_capacity: Maximum number of boxes to detect
+ *
+ * Returns: Initialized result structure, or NULL on error.
+ */
+text_detector_result_t* text_detector_result_create(size_t box_capacity);
+
+/**
+ * Free a detection result structure.
+ */
+void text_detector_result_free(text_detector_result_t* result);
+
+/**
+ * Get the number of detected boxes from a result.
+ */
+size_t text_detector_result_get_count(const text_detector_result_t* result);
+
+/**
+ * Get the array of detected boxes from a result.
+ */
+const text_detector_box_t* text_detector_result_get_boxes(const text_detector_result_t* result);
+
+/**
  * Run text detection on an RGB image.
  *
  * Args:
  *   rgb: Input image data [height][width][3], RGB format, values in [0.0, 1.0].
  *        Must be TEXT_DETECTOR_INPUT_HEIGHT x TEXT_DETECTOR_INPUT_WIDTH.
- *   result: Output structure to store detection results.
+ *   result: Result structure created with text_detector_result_create()
  *
  * Returns: 0 on success, -1 on error.
  */
@@ -158,10 +181,10 @@ int text_detector_save_annotated(const char* filename, const char* original_imag
  * Each cell = 4x4 pixels. Adds optional padding.
  *
  * Args:
- *   boxes: Bounding box list to convert
+ *   result: Result structure from text_detector_detect()
  *   padding: Pixels to expand each box by (on all sides)
  */
-void text_detector_convert_to_pixels(text_detector_boxes_t* boxes, int padding);
+void text_detector_convert_to_pixels(text_detector_result_t* result, int padding);
 
 /**
  * Save cropped text regions as separate PNG files.
