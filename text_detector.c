@@ -131,12 +131,34 @@ int text_detector_detect(const float rgb[TEXT_DETECTOR_INPUT_HEIGHT][TEXT_DETECT
     /* Run inference */
     entry(input, result->output);
 
+    if (getenv("MCP_DEBUG")) {
+        fprintf(stderr, "[LIB] entry() returned, about to extract boxes\n");
+        fflush(stderr);
+    }
+
     /* Extract boxes if result has a boxes array allocated */
+    if (getenv("MCP_DEBUG")) {
+        fprintf(stderr, "[LIB] result->boxes.boxes = %p\n", (void*)result->boxes.boxes);
+        fflush(stderr);
+    }
     if (result->boxes.boxes) {
+        if (getenv("MCP_DEBUG")) {
+            fprintf(stderr, "[LIB] About to call text_detector_extract_boxes\n");
+            fflush(stderr);
+        }
         int box_count = text_detector_extract_boxes(result->output, &result->boxes);
+        if (getenv("MCP_DEBUG")) {
+            fprintf(stderr, "[LIB] extract_boxes returned: %d\n", box_count);
+            fflush(stderr);
+        }
         if (box_count < 0) {
             return -1;
         }
+    }
+
+    if (getenv("MCP_DEBUG")) {
+        fprintf(stderr, "[LIB] text_detector_detect returning 0\n");
+        fflush(stderr);
     }
 
     return 0;
