@@ -40,11 +40,18 @@ int text_detector_detect_and_transcribe_memory(
 
     if (debug_enabled()) {
         fprintf(stderr, "[LIB] detect_and_transcribe_memory: padding=%d\n", padding);
+        fprintf(stderr, "[LIB] About to call text_detector_detect\n");
     }
 
     /* Step 1: Run detection */
     text_detector_result_t result;
-    if (text_detector_detect(rgb, &result) != 0) {
+    int detect_result = text_detector_detect(rgb, &result);
+
+    if (debug_enabled()) {
+        fprintf(stderr, "[LIB] text_detector_detect returned: %d\n", detect_result);
+    }
+
+    if (detect_result != 0) {
         fprintf(stderr, "Error: Detection failed\n");
         return -1;
     }
