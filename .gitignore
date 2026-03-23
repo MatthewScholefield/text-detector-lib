@@ -1,0 +1,29 @@
+# Build directories
+build/
+*.o
+*.a
+*.so
+
+# Generated files
+model_postprocessed.c
+*.original
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+!cmake/*.cmake
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

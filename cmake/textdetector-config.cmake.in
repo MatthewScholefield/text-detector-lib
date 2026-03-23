@@ -1,0 +1,14 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Find dependencies
+find_dependency(PNG REQUIRED)
+find_dependency(PkgConfig REQUIRED)
+pkg_check_modules(Tesseract REQUIRED IMPORTED_TARGET tesseract)
+pkg_check_modules(Leptonica REQUIRED IMPORTED_TARGET lept)
+
+# Include targets
+include("${CMAKE_CURRENT_LIST_DIR}/textdetector-targets.cmake")
+
+check_required_components(textdetector)
