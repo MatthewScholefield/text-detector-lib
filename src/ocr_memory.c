@@ -6,7 +6,7 @@
  */
 
 #include "text_detector.h"
-#include <tesseract/capi.h>
+#include "ocr_internal.h"
 #include <leptonica/allheaders.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,9 +15,9 @@
 #define MODEL_HEIGHT TEXT_DETECTOR_INPUT_HEIGHT
 #define MODEL_WIDTH TEXT_DETECTOR_INPUT_WIDTH
 
-/* External Tesseract API handle from ocr.c */
-extern TessBaseAPI* tesseract_api;
-extern int tesseract_initialized;
+/* External getter functions from ocr.c */
+extern TessBaseAPI* ocr_get_tesseract_api(void);
+extern int ocr_is_initialized(void);
 
 /**
  * Create a PIX structure from RGB memory region.
@@ -100,7 +100,7 @@ int ocr_transcribe_from_rgb(
     const text_detector_boxes_t* boxes,
     text_detector_text_boxes_t* text_boxes) {
 
-    if (!tesseract_initialized || !tesseract_api) {
+    if (!ocr_is_initialized() || !ocr_get_tesseract_api()) {
         fprintf(stderr, "Error: OCR not initialized.\n");
         return -1;
     }
@@ -122,10 +122,10 @@ int ocr_transcribe_from_rgb(
         }
 
         /* Set image to Tesseract */
-        TessBaseAPISetImage2(tesseract_api, pix);
+        TessBaseAPISetImage2(ocr_get_tesseract_api(), pix);
 
         /* Get text */
-        char* text = TessBaseAPIGetUTF8Text(tesseract_api);
+        char* text = TessBaseAPIGetUTF8Text(ocr_get_tesseract_api());
         if (!text) {
             pixDestroy(&pix);
             continue;
@@ -138,7 +138,7 @@ int ocr_transcribe_from_rgb(
         }
 
         /* Get confidence */
-        int confidence = TessBaseAPIMeanTextConf(tesseract_api);
+        int confidence = TessBaseAPIMeanTextConf(ocr_get_tesseract_api());
         float conf_float = confidence / 100.0f;
 
         /* Store result */

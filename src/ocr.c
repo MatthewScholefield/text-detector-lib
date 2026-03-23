@@ -15,11 +15,20 @@
 #define MODEL_WIDTH TEXT_DETECTOR_INPUT_WIDTH
 
 /* Tesseract API handle */
-static TessBaseAPI* tesseract_api = NULL;
-static int tesseract_initialized = 0;
+TessBaseAPI* tesseract_api = NULL;
+int tesseract_initialized = 0;
 
 /* External functions from image_io.c */
 extern int load_png(const char* filename, float rgb[MODEL_HEIGHT][MODEL_WIDTH][3]);
+
+/* Getters for Tesseract API handle (for ocr_memory.c) */
+TessBaseAPI* ocr_get_tesseract_api(void) {
+    return tesseract_api;
+}
+
+int ocr_is_initialized(void) {
+    return tesseract_initialized;
+}
 
 /* Internal OCR initialization - called from text_detector_init() */
 int ocr_init(const char* tessdata_path, const char* language) {
