@@ -1,6 +1,10 @@
 # text-detector-lib
 
-A lightweight C library for detecting and recognizing text in images. Optimized for UI text detection (LLM agents, automation tools, accessibility).
+A lightweight C library for detecting and recognizing text in images. Optimized for UI text detection (useful for LLM agents).
+
+### ℹ️ Why I made this?
+
+I wanted to build an agent that could interact with my app to test CUJs. My app has low-res software rendered text so it needed a pure OCR based solution but tesseract works very poorly on the sparse text in UI elements. This library uses a custom trained model to detect regions with text and then splits them and feeds them individually to tesseract.
 
 ## Quick Start
 
